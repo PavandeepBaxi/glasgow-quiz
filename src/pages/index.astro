@@ -15,6 +15,9 @@ const quizzes = [...real, ...test]
     DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) ||
     a.time.localeCompare(b.time)
   );
+
+// Only offer areas that actually have quizzes
+const areas = [...new Set(quizzes.map((q) => q.area))].sort();
 ---
 <html lang="en">
   <head>
@@ -29,10 +32,119 @@ const quizzes = [...real, ...test]
       <p class="sub">{quizzes.length} quizzes, each one checked by hand</p>
     </header>
     <main>
+      <!-- Hidden until the script runs: without JavaScript, every quiz simply shows -->
+      <form id="filters" class="filters" hidden>
+        <fieldset class="days">
+          <legend>Day</legend>
+          <label><input type="radio" name="day" value="tonight" checked /> Tonight</label>
+          <label><input type="radio" name="day" value="all" /> Any day</label>
+          {DAY_ORDER.map((d) => (
+            <label><input type="radio" name="day" value={d} /> {d.slice(0, 3)}</label>
+          ))}
+        </fieldset>
+        <div class="row">
+          <label>
+            Area
+            <select name="area">
+              <option value="all">Anywhere</option>
+              {areas.map((a) => <option value={a}>{a}</option>)}
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" name="free" /> Free entry only</label>
+        </div>
+      </form>
+
+      <p id="status" class="status" aria-live="polite"></p>
+
       <ul class="list">
-        {quizzes.map((q) => <li><QuizCard quiz={q} /></li>)}
+        {quizzes.map((q) => (
+          <li data-day={q.day} data-area={q.area} data-free={q.entryFeePence === 0 ? "yes" : "no"}>
+            <QuizCard quiz={q} />
+          </li>
+        ))}
       </ul>
     </main>
+
+    <script>
+      const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday",
+                    "Friday", "Saturday", "Sunday"];
+
+      const form = document.querySelector<HTMLFormElement>("#filters")!;
+      const status = document.querySelector<HTMLParagraphElement>("#status")!;
+      const items = [...document.querySelectorAll<HTMLLIElement>(".list > li")];
+
+      const dayInput = form.elements.namedItem("day") as RadioNodeList;
+      const areaInput = form.elements.namedItem("area") as HTMLSelectElement;
+      const freeInput = form.elements.namedItem("free") as HTMLInputElement;
+
+      // Today's weekday in Glasgow, whatever timezone the visitor's device uses
+      const today = new Intl.DateTimeFormat("en-GB", {
+        weekday: "long",
+        timeZone: "Europe/London",
+      }).format(new Date());
+
+      const knownAreas = new Set(items.map((li) => li.dataset.area));
+
+      // URL parameters are untrusted input: accept only values we know about
+      function readUrl() {
+        const p = new URLSearchParams(location.search);
+        const day = p.get("day");
+        const area = p.get("area");
+        if (day === "all" || (day !== null && DAYS.includes(day))) dayInput.value = day;
+        if (area !== null && knownAreas.has(area)) areaInput.value = area;
+        freeInput.checked = p.get("free") === "1";
+      }
+
+      function writeUrl(day: string, area: string, free: boolean) {
+        const p = new URLSearchParams();
+        if (day !== "tonight") p.set("day", day);
+        if (area !== "all") p.set("area", area);
+        if (free) p.set("free", "1");
+        const qs = p.toString();
+        history.replaceState(null, "", qs ? `?${qs}` : location.pathname);
+      }
+
+      function apply() {
+        const dayChoice = dayInput.value;
+        const day = dayChoice === "tonight" ? today : dayChoice;
+        const area = areaInput.value;
+        const freeOnly = freeInput.checked;
+
+        const matchesOther = (li: HTMLLIElement) =>
+          (area === "all" || li.dataset.area === area) &&
+          (!freeOnly || li.dataset.free === "yes");
+
+        let shown = 0;
+        for (const li of items) {
+          const ok = (day === "all" || li.dataset.day === day) && matchesOther(li);
+          li.hidden = !ok;
+          if (ok) shown++;
+        }
+
+        // textContent always inserts plain text, never HTML
+        if (shown > 0) {
+          const word = shown === 1 ? "quiz" : "quizzes";
+          status.textContent = `${shown} ${word}${dayChoice === "tonight" ? " tonight" : ""}`;
+        } else if (dayChoice === "tonight") {
+          const start = DAYS.indexOf(today);
+          const next = [1, 2, 3, 4, 5, 6]
+            .map((i) => DAYS[(start + i) % 7])
+            .find((d) => items.some((li) => li.dataset.day === d && matchesOther(li)));
+          status.textContent = next
+            ? `No quizzes tonight. Next up: ${next}.`
+            : "No quizzes match these filters.";
+        } else {
+          status.textContent = "No quizzes match these filters.";
+        }
+
+        writeUrl(dayChoice, area, freeOnly);
+      }
+
+      readUrl();
+      form.hidden = false;
+      form.addEventListener("change", apply);
+      apply();
+    </script>
   </body>
 </html>
 
@@ -51,6 +163,8 @@ const quizzes = [...real, ...test]
       --jackpot: #f5cf6a; --jackpot-bg: #3a2e10;
     }
   }
+  /* Make sure "hidden" always wins, even over display: grid/flex below */
+  [hidden] { display: none !important; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -63,4 +177,33 @@ const quizzes = [...real, ...test]
   h1 { font-size: 1.6rem; margin: 0.5rem 0 0; }
   .sub { color: var(--muted); margin: 0.25rem 0 0; }
   .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+
+  .filters { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
+  .filters fieldset {
+    border: 0; padding: 0; margin: 0;
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+  }
+  .filters legend { font-size: 0.85rem; color: var(--muted); padding: 0; margin-bottom: 0.35rem; }
+  .days label {
+    position: relative;
+    display: inline-flex; align-items: center;
+    min-height: 40px; padding: 0 0.8rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card);
+    font-weight: 600; font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .days input { position: absolute; opacity: 0; pointer-events: none; }
+  .days label:has(input:checked) {
+    background: var(--accent); border-color: var(--accent); color: var(--bg);
+  }
+  .days label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .row select {
+    min-height: 40px; margin-left: 0.4rem; padding: 0 0.6rem;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); color: var(--text); font: inherit;
+  }
+  .check { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; }
+  .status { color: var(--muted); font-weight: 600; margin: 0 0 0.75rem; }
 </style>
