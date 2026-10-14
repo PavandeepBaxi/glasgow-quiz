@@ -1,13 +1,22 @@
 ---
-// This top section runs at BUILD time, not in the browser.
-const quizzes = [
-  { pub: "Example Bar", area: "West End", day: "Tuesday", time: "20:00",
-    entry: "£2 per person", prize: "£50 bar tab", jackpot: "£120" },
-  { pub: "Sample Tavern", area: "Southside", day: "Wednesday", time: "19:30",
-    entry: "Free", prize: "Round of drinks", jackpot: null },
-  { pub: "Test Arms", area: "City Centre", day: "Sunday", time: "20:30",
-    entry: "£1 per person", prize: "Cash pot", jackpot: null },
-];
+import { getCollection } from "astro:content";
+
+const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday",
+                   "Friday", "Saturday", "Sunday"];
+
+const quizzes = (await getCollection("quizzes"))
+  .map((entry) => entry.data)
+  .sort((a, b) =>
+    DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) ||
+    a.time.localeCompare(b.time)
+  );
+
+// Always shows pounds: 50000 -> "£500", 250 -> "£2.50"
+const pounds = (pence: number) =>
+  `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
+
+// For entry fees, where 0 means free
+const money = (pence: number) => (pence === 0 ? "Free" : pounds(pence));
 ---
 <html lang="en">
   <head>
@@ -21,8 +30,25 @@ const quizzes = [
       {quizzes.map((q) => (
         <li>
           <strong>{q.pub}</strong> ({q.area})<br />
-          {q.day} at {q.time} · Entry: {q.entry} · Prize: {q.prize}
-          {q.jackpot && <span> · Jackpot: {q.jackpot}</span>}
+          {q.day}s at {q.time} ({q.frequency})<br />
+          Entry: {money(q.entryFeePence)}{q.entryFeePence > 0 && q.entryBasis && ` ${q.entryBasis}`}
+          {q.maxTeamSize && <span> · Teams up to {q.maxTeamSize}</span>}<br />
+          Prize: {q.prize}
+          {q.jackpot && (
+            <span><br />Jackpot: {q.jackpot.description}
+              {q.jackpot.currentAmountPence !== undefined &&
+                ` (currently ${pounds(q.jackpot.currentAmountPence)})`}
+            </span>
+          )}
+          {q.links && (
+            <>
+              <br />
+              {q.links.map((l, i) => (
+                <>{i > 0 && " · "}<a href={l.url} rel="noopener noreferrer">{l.label}</a></>
+              ))}
+            </>
+          )}
+          <br /><small>Last checked {q.lastVerified.toLocaleDateString("en-GB")} ({q.verifiedHow})</small>
         </li>
       ))}
     </ul>

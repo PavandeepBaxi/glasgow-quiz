@@ -1,0 +1,27 @@
+[
+  {
+    "id": "radio-tuesday",
+    "pub": "Radio",
+    "address": "373–375 Sauchiehall Street, Glasgow G2 3HU",
+    "area": "City Centre",
+    "lat": 55.86568,
+    "lng": -4.26697,
+    "day": "Tuesday",
+    "time": "19:00",
+    "frequency": "weekly",
+    "entryFeePence": 0,
+    "maxTeamSize": 6,
+    "format": "paper",
+    "prize": "1st: £150 cash · 2nd: bottle of spirits · 3rd: round of shots or pizza slices",
+    "jackpot": {
+      "description": "Monthly rolling cash pot",
+      "currentAmountPence": 50000
+    },
+    "links": [
+      { "label": "Website", "url": "https://www.radioglasgow.uk/" },
+      { "label": "Instagram", "url": "https://www.instagram.com/radioglasgow/" }
+    ],
+    "lastVerified": "2026-10-13",
+    "verifiedHow": "attended"
+  }
+]
