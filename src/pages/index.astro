@@ -1,16 +1,30 @@
 ---
+// This top section runs at BUILD time, not in the browser.
+const quizzes = [
+  { pub: "Example Bar", area: "West End", day: "Tuesday", time: "20:00",
+    entry: "£2 per person", prize: "£50 bar tab", jackpot: "£120" },
+  { pub: "Sample Tavern", area: "Southside", day: "Wednesday", time: "19:30",
+    entry: "Free", prize: "Round of drinks", jackpot: null },
+  { pub: "Test Arms", area: "City Centre", day: "Sunday", time: "20:30",
+    entry: "£1 per person", prize: "Cash pot", jackpot: null },
+];
 ---
-
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Glasgow Pub Quizzes</title>
+  </head>
+  <body>
+    <h1>Glasgow pub quizzes</h1>
+    <ul>
+      {quizzes.map((q) => (
+        <li>
+          <strong>{q.pub}</strong> ({q.area})<br />
+          {q.day} at {q.time} · Entry: {q.entry} · Prize: {q.prize}
+          {q.jackpot && <span> · Jackpot: {q.jackpot}</span>}
+        </li>
+      ))}
+    </ul>
+  </body>
 </html>
