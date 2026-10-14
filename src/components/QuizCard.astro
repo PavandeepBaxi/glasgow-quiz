@@ -1,0 +1,131 @@
+---
+import type { CollectionEntry } from "astro:content";
+
+type Props = { quiz: CollectionEntry<"quizzes">["data"] };
+const { quiz: q } = Astro.props;
+
+const pounds = (pence: number) =>
+  `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
+
+const formatLabel = { paper: "Pen & paper", app: "Phone app", mixed: "Paper + app" }[q.format];
+
+// Worked out at build time; flags listings nobody has checked for 60+ days
+const daysSinceCheck = Math.floor((Date.now() - q.lastVerified.getTime()) / 86_400_000);
+const stale = daysSinceCheck > 60;
+const checkedOn = q.lastVerified.toLocaleDateString("en-GB",
+  { day: "numeric", month: "short", year: "numeric" });
+---
+<article class="card">
+  <div class="when">
+    <span class="day">{q.day.slice(0, 3)}</span>
+    <span class="time">{q.time}</span>
+  </div>
+
+  <div class="body">
+    <h2>{q.pub}</h2>
+    <p class="meta">
+      {q.area} · {q.frequency}{q.maxTeamSize && ` · teams up to ${q.maxTeamSize}`}
+    </p>
+
+    <div class="badges">
+      {q.entryFeePence === 0
+        ? <span class="badge free">Free entry</span>
+        : <span class="badge">{pounds(q.entryFeePence)} {q.entryBasis}</span>}
+      <span class="badge">{formatLabel}</span>
+    </div>
+
+    <p class="prize">🏆 {q.prize}</p>
+
+    {q.jackpot && (
+      <p class="jackpot">
+        💰 Jackpot{q.jackpot.currentAmountPence !== undefined &&
+          `: ${pounds(q.jackpot.currentAmountPence)}`}
+        <span class="jackpot-note">{q.jackpot.description}</span>
+      </p>
+    )}
+
+    {q.links && (
+      <p class="links">
+        {q.links.map((l) => (
+          <a href={l.url} rel="noopener noreferrer">{l.label}</a>
+        ))}
+      </p>
+    )}
+
+    <p class:list={["checked", { stale }]}>
+      Checked {checkedOn} ({q.verifiedHow}){stale && " · may be out of date"}
+    </p>
+  </div>
+</article>
+
+<style>
+  .card {
+    display: flex;
+    gap: 0.9rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1rem;
+  }
+  .when {
+    flex: 0 0 3.5rem;
+    text-align: center;
+    border-right: 1px solid var(--line);
+    padding-right: 0.9rem;
+  }
+  .day {
+    display: block;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.85rem;
+    color: var(--accent);
+  }
+  .time {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .body { flex: 1; min-width: 0; }
+  h2 { font-size: 1.15rem; margin: 0; overflow-wrap: anywhere; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin: 0.15rem 0 0.5rem; }
+  .badges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .badge {
+    font-size: 0.8rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+  }
+  .badge.free {
+    background: var(--free-bg);
+    color: var(--free);
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .prize { margin: 0.25rem 0; }
+  .jackpot {
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.7rem;
+    border-radius: 10px;
+    background: var(--jackpot-bg);
+    color: var(--jackpot);
+    font-weight: 700;
+  }
+  .jackpot-note { display: block; font-weight: 400; font-size: 0.85rem; }
+  .links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0 0; }
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .links a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .checked { color: var(--muted); font-size: 0.8rem; margin: 0.6rem 0 0; }
+  .checked.stale { color: var(--accent); font-weight: 600; }
+</style>

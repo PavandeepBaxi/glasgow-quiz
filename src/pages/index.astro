@@ -1,56 +1,66 @@
 ---
 import { getCollection } from "astro:content";
+import QuizCard from "../components/QuizCard.astro";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday",
                    "Friday", "Saturday", "Sunday"];
 
-const quizzes = (await getCollection("quizzes"))
+const real = await getCollection("quizzes");
+// Fake listings only appear in `npm run dev`, never in the built site
+const test = import.meta.env.DEV ? await getCollection("testQuizzes") : [];
+
+const quizzes = [...real, ...test]
   .map((entry) => entry.data)
   .sort((a, b) =>
     DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) ||
     a.time.localeCompare(b.time)
   );
-
-// Always shows pounds: 50000 -> "£500", 250 -> "£2.50"
-const pounds = (pence: number) =>
-  `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
-
-// For entry fees, where 0 means free
-const money = (pence: number) => (pence === 0 ? "Free" : pounds(pence));
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>Glasgow Pub Quizzes</title>
   </head>
   <body>
-    <h1>Glasgow pub quizzes</h1>
-    <ul>
-      {quizzes.map((q) => (
-        <li>
-          <strong>{q.pub}</strong> ({q.area})<br />
-          {q.day}s at {q.time} ({q.frequency})<br />
-          Entry: {money(q.entryFeePence)}{q.entryFeePence > 0 && q.entryBasis && ` ${q.entryBasis}`}
-          {q.maxTeamSize && <span> · Teams up to {q.maxTeamSize}</span>}<br />
-          Prize: {q.prize}
-          {q.jackpot && (
-            <span><br />Jackpot: {q.jackpot.description}
-              {q.jackpot.currentAmountPence !== undefined &&
-                ` (currently ${pounds(q.jackpot.currentAmountPence)})`}
-            </span>
-          )}
-          {q.links && (
-            <>
-              <br />
-              {q.links.map((l, i) => (
-                <>{i > 0 && " · "}<a href={l.url} rel="noopener noreferrer">{l.label}</a></>
-              ))}
-            </>
-          )}
-          <br /><small>Last checked {q.lastVerified.toLocaleDateString("en-GB")} ({q.verifiedHow})</small>
-        </li>
-      ))}
-    </ul>
+    <header>
+      <h1>Glasgow pub quizzes</h1>
+      <p class="sub">{quizzes.length} quizzes, each one checked by hand</p>
+    </header>
+    <main>
+      <ul class="list">
+        {quizzes.map((q) => <li><QuizCard quiz={q} /></li>)}
+      </ul>
+    </main>
   </body>
 </html>
+
+<style is:global>
+  :root {
+    --bg: #f6f4ef; --card: #ffffff; --text: #1d1b18; --muted: #6b665e;
+    --line: #e4dfd5; --accent: #b4471f;
+    --free: #1f7a4d; --free-bg: #e3f3ea;
+    --jackpot: #7a5200; --jackpot-bg: #fff4d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14130f; --card: #1f1d18; --text: #f1ede4; --muted: #a39d92;
+      --line: #34312a; --accent: #f08a5d;
+      --free: #7fd6a6; --free-bg: #16362a;
+      --jackpot: #f5cf6a; --jackpot-bg: #3a2e10;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+  header, main { max-width: 40rem; margin: 0 auto; padding: 1rem; }
+  h1 { font-size: 1.6rem; margin: 0.5rem 0 0; }
+  .sub { color: var(--muted); margin: 0.25rem 0 0; }
+  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+</style>
